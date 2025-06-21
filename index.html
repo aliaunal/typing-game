@@ -21,15 +21,15 @@
       border-radius: 5px;
       margin-bottom: 1rem;
     }
-    input[type="text"], textarea, button {
+    input[type="text"] {
       width: 100%;
       font-size: 1rem;
       padding: 0.5rem;
       margin-bottom: 1rem;
     }
-    textarea {
-      resize: none;
+    .typing-input {
       height: 100px;
+      font-family: monospace;
     }
     .result {
       margin-top: 1rem;
@@ -52,8 +52,7 @@
   </div>
 
   <input type="text" id="playerName" placeholder="Enter your name">
-  <textarea id="inputField" placeholder="Type here (no copy-pasting allowed, champ)..." autocomplete="off"></textarea>
-  <button id="submitBtn">Submit</button>
+  <input type="text" id="inputField" class="typing-input" placeholder="Type the sentence above and press Enter when done..." autocomplete="off">
   <div class="result" id="result"></div>
 
   <div class="leaderboard">
@@ -73,7 +72,6 @@
     const result = document.getElementById('result');
     const leaderboardList = document.getElementById('leaderboard');
     const playerNameInput = document.getElementById('playerName');
-    const submitBtn = document.getElementById('submitBtn');
 
     // Game state
     let startTime = null;
@@ -106,79 +104,67 @@
       totalKeystrokes++;
     });
 
-    // Score submission
-    function submitScore() {
-      const name = playerNameInput.value.trim();
-      const typed = inputField.value.trim();
-
-      if (!name) {
-        alert("Please enter your name.");
-        return;
-      }
-
-      if (!typed) {
-        alert("Please type something before submitting.");
-        return;
-      }
-
-      if (!hasStarted) {
-        alert("Please start typing first.");
-        return;
-      }
-
-      const endTime = Date.now();
-      const timeInSeconds = (endTime - startTime) / 1000;
-
-      // Calculate mistakes
-      let finalMistakes = 0;
-      const minLength = Math.min(typed.length, targetSentence.length);
-      for (let i = 0; i < minLength; i++) {
-        if (typed[i] !== targetSentence[i]) finalMistakes++;
-      }
-      finalMistakes += Math.abs(typed.length - targetSentence.length);
-
-      // Calculate score
-      const accuracy = totalKeystrokes > 0 ? Math.max(0, 1 - (realTimeMistakes / totalKeystrokes)) : 0;
-      const accuracyPenalty = (1 - accuracy) * 5;
-      const penalty = finalMistakes * 0.5 + accuracyPenalty;
-      const score = Math.max(0, (timeInSeconds - penalty)).toFixed(2);
-
-      // Display results
-      result.innerHTML = `
-        Time: ${timeInSeconds.toFixed(2)}s<br>
-        Total Keystrokes: ${totalKeystrokes}<br>
-        Mistakes During Typing: ${realTimeMistakes}<br>
-        Accuracy: ${(accuracy * 100).toFixed(1)}%<br>
-        <strong>Score: ${score}</strong>
-      `;
-
-      // Save to Supabase
-      supabase.from('leaderboard')
-        .insert([{ player_name: name, score: parseFloat(score) }])
-        .then(() => updateLeaderboard());
-
-      // Reset game state
-      hasStarted = false;
-      startTime = null;
-      inputField.value = '';
-      totalKeystrokes = 0;
-      realTimeMistakes = 0;
-      inputField.focus();
-    }
-
-    // Event listeners with proper prevention
-    submitBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      submitScore();
-    });
-
+    // Score submission on Enter key
     inputField.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        submitScore();
-        return false;
+        e.preventDefault(); // Prevent any default behavior
+        
+        const name = playerNameInput.value.trim();
+        const typed = inputField.value.trim();
+
+        if (!name) {
+          alert("Please enter your name.");
+          return;
+        }
+
+        if (!typed) {
+          alert("Please type something before submitting.");
+          return;
+        }
+
+        if (!hasStarted) {
+          alert("Please start typing first.");
+          return;
+        }
+
+        const endTime = Date.now();
+        const timeInSeconds = (endTime - startTime) / 1000;
+
+        // Calculate mistakes
+        let finalMistakes = 0;
+        const minLength = Math.min(typed.length, targetSentence.length);
+        for (let i = 0; i < minLength; i++) {
+          if (typed[i] !== targetSentence[i]) finalMistakes++;
+        }
+        finalMistakes += Math.abs(typed.length - targetSentence.length);
+
+        // Calculate score
+        const accuracy = totalKeystrokes > 0 ? Math.max(0, 1 - (realTimeMistakes / totalKeystrokes)) : 0;
+        const accuracyPenalty = (1 - accuracy) * 5;
+        const penalty = finalMistakes * 0.5 + accuracyPenalty;
+        const score = Math.max(0, (timeInSeconds - penalty)).toFixed(2);
+
+        // Display results
+        result.innerHTML = `
+          Time: ${timeInSeconds.toFixed(2)}s<br>
+          Total Keystrokes: ${totalKeystrokes}<br>
+          Mistakes During Typing: ${realTimeMistakes}<br>
+          Accuracy: ${(accuracy * 100).toFixed(1)}%<br>
+          <strong>Score: ${score}</strong>
+        `;
+
+        // Save to Supabase
+        supabase.from('leaderboard')
+          .insert([{ player_name: name, score: parseFloat(score) }])
+          .then(() => updateLeaderboard());
+
+        // Reset game state
+        hasStarted = false;
+        startTime = null;
+        inputField.value = '';
+        totalKeystrokes = 0;
+        realTimeMistakes = 0;
+        inputField.focus();
       }
     });
 
