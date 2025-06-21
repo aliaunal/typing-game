@@ -105,9 +105,9 @@
     });
 
     // Score submission on Enter key
-    inputField.addEventListener('keydown', (e) => {
+    inputField.addEventListener('keydown', async (e) => {
       if (e.key === 'Enter') {
-        e.preventDefault(); // Prevent any default behavior
+        e.preventDefault();
         
         const name = playerNameInput.value.trim();
         const typed = inputField.value.trim();
@@ -154,9 +154,21 @@
         `;
 
         // Save to Supabase
-        supabase.from('leaderboard')
-          .insert([{ player_name: name, score: parseFloat(score) }])
-          .then(() => updateLeaderboard());
+        try {
+          const { data, error } = await supabase
+            .from('leaderboard')
+            .insert([{ 
+              player_name: name, 
+              score: parseFloat(score),
+              submitted_at: new Date().toISOString()
+            }]);
+          
+          if (error) throw error;
+          updateLeaderboard();
+        } catch (error) {
+          console.error("Error saving to Supabase:", error);
+          result.innerHTML += `<br><span style="color:red">Error saving to leaderboard</span>`;
+        }
 
         // Reset game state
         hasStarted = false;
@@ -170,19 +182,26 @@
 
     // Leaderboard management
     async function updateLeaderboard() {
-      const { data, error } = await supabase
-        .from('leaderboard')
-        .select('*')
-        .order('score', { ascending: true })
-        .limit(5);
+      try {
+        const { data, error } = await supabase
+          .from('leaderboard')
+          .select('*')
+          .order('score', { ascending: true })
+          .limit(5);
+        
+        if (error) throw error;
 
-      leaderboardList.innerHTML = '';
-      if (data) {
-        data.forEach(entry => {
-          const li = document.createElement('li');
-          li.textContent = `${entry.player_name}: ${entry.score.toFixed(2)}s`;
-          leaderboardList.appendChild(li);
-        });
+        leaderboardList.innerHTML = '';
+        if (data) {
+          data.forEach(entry => {
+            const li = document.createElement('li');
+            li.textContent = `${entry.player_name}: ${entry.score.toFixed(2)}s`;
+            leaderboardList.appendChild(li);
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching leaderboard:", error);
+        leaderboardList.innerHTML = '<li>Error loading leaderboard</li>';
       }
     }
 
