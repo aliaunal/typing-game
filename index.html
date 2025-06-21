@@ -21,14 +21,12 @@
       border-radius: 5px;
       margin-bottom: 1rem;
     }
-    textarea, input[type="text"] {
+    input[type="text"], input[type="text"], button {
       width: 100%;
       font-size: 1rem;
       padding: 0.5rem;
       margin-bottom: 1rem;
-    }
-    textarea {
-      height: 100px;
+      box-sizing: border-box;
     }
     .result {
       margin-top: 1rem;
@@ -50,8 +48,9 @@
     Betty Botter bought some butter, but Betty Botter thought her butter was bitter, so she bought some better butter to make her butter better.
   </div>
 
-  <input type="text" id="playerName" placeholder="Enter your name" />
-  <input type="text" id="inputField" placeholder="Type here (no copy-pasting allowed)..." />
+  <input type="text" id="playerName" placeholder="Enter your name" autocomplete="off" />
+  <input type="text" id="inputField" placeholder="Type here (no copy-pasting allowed)..." autocomplete="off" />
+  <button id="submitBtn">Submit</button>
   <div class="result" id="result"></div>
 
   <div class="leaderboard">
@@ -70,6 +69,7 @@
     const result = document.getElementById('result');
     const leaderboardList = document.getElementById('leaderboard');
     const playerNameInput = document.getElementById('playerName');
+    const submitBtn = document.getElementById('submitBtn');
 
     let startTime = null;
     let hasStarted = false;
@@ -98,44 +98,50 @@
       totalKeystrokes++;
     });
 
-    inputField.addEventListener('keydown', async (e) => {
+    function submitScore() {
+      if (!hasStarted) return;
+
+      const name = playerNameInput.value.trim();
+      if (!name) {
+        alert("Please enter your name before submitting.");
+        return;
+      }
+
+      const endTime = Date.now();
+      const timeInSeconds = (endTime - startTime) / 1000;
+
+      const userInput = inputField.value.trim();
+      let finalMistakes = 0;
+      const minLength = Math.min(userInput.length, targetSentence.length);
+
+      for (let i = 0; i < minLength; i++) {
+        if (userInput[i] !== targetSentence[i]) finalMistakes++;
+      }
+      finalMistakes += Math.abs(userInput.length - targetSentence.length);
+
+      const accuracy = totalKeystrokes > 0 ? Math.max(0, 1 - (realTimeMistakes / totalKeystrokes)) : 0;
+      const accuracyPenalty = (1 - accuracy) * 5;
+      const penalty = finalMistakes * 0.5 + accuracyPenalty;
+      const score = Math.max(0, (timeInSeconds - penalty)).toFixed(2);
+
+      result.innerHTML = `Time: ${timeInSeconds.toFixed(2)}s<br>Total Keystrokes: ${totalKeystrokes}<br>Mistakes During Typing: ${realTimeMistakes}<br>Accuracy: ${(accuracy * 100).toFixed(1)}%<br><strong>Score: ${score}</strong>`;
+
+      supabase.from('leaderboard').insert([{ player_name: name, score: parseFloat(score) }])
+        .then(() => updateLeaderboard());
+
+      hasStarted = false;
+      startTime = null;
+      inputField.value = '';
+      totalKeystrokes = 0;
+      realTimeMistakes = 0;
+    }
+
+    submitBtn.addEventListener('click', submitScore);
+
+    inputField.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (!hasStarted) return;
-
-        const name = playerNameInput.value.trim();
-        if (!name) {
-          alert("Please enter your name before submitting.");
-          return;
-        }
-
-        const endTime = Date.now();
-        const timeInSeconds = (endTime - startTime) / 1000;
-
-        const userInput = inputField.value.trim();
-        let finalMistakes = 0;
-        const minLength = Math.min(userInput.length, targetSentence.length);
-
-        for (let i = 0; i < minLength; i++) {
-          if (userInput[i] !== targetSentence[i]) finalMistakes++;
-        }
-        finalMistakes += Math.abs(userInput.length - targetSentence.length);
-
-        const accuracy = totalKeystrokes > 0 ? Math.max(0, 1 - (realTimeMistakes / totalKeystrokes)) : 0;
-        const accuracyPenalty = (1 - accuracy) * 5;
-        const penalty = finalMistakes * 0.5 + accuracyPenalty;
-        const score = Math.max(0, (timeInSeconds - penalty)).toFixed(2);
-
-        result.innerHTML = `Time: ${timeInSeconds.toFixed(2)}s<br>Total Keystrokes: ${totalKeystrokes}<br>Mistakes During Typing: ${realTimeMistakes}<br>Accuracy: ${(accuracy * 100).toFixed(1)}%<br><strong>Score: ${score}</strong>`;
-
-        await supabase.from('leaderboard').insert([{ player_name: name, score: parseFloat(score) }]);
-        updateLeaderboard();
-
-        hasStarted = false;
-        startTime = null;
-        inputField.value = '';
-        totalKeystrokes = 0;
-        realTimeMistakes = 0;
+        submitScore();
       }
     });
 
