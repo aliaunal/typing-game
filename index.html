@@ -21,12 +21,11 @@
       border-radius: 5px;
       margin-bottom: 1rem;
     }
-    input[type="text"], input[type="text"], button {
+    input[type="text"], button {
       width: 100%;
       font-size: 1rem;
       padding: 0.5rem;
       margin-bottom: 1rem;
-      box-sizing: border-box;
     }
     .result {
       margin-top: 1rem;
@@ -48,7 +47,7 @@
     Betty Botter bought some butter, but Betty Botter thought her butter was bitter, so she bought some better butter to make her butter better.
   </div>
 
-  <input type="text" id="playerName" placeholder="Enter your name" autocomplete="off" />
+  <input type="text" id="playerName" placeholder="Enter your name" />
   <input type="text" id="inputField" placeholder="Type here (no copy-pasting allowed)..." autocomplete="off" />
   <button id="submitBtn">Submit</button>
   <div class="result" id="result"></div>
@@ -59,7 +58,6 @@
   </div>
 
   <script>
-    // Replace with your actual Supabase values:
     const SUPABASE_URL = 'https://vcdrdwdhleiauccimdrm.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjZHJkd2RobGVpYXVjY2ltZHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0Njk0NzAsImV4cCI6MjA2NjA0NTQ3MH0.9bfXvPlXaPgCTYr7kPqwfqScsCNfkO2MtAgDbsw_GRY';
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -126,8 +124,7 @@
 
       result.innerHTML = `Time: ${timeInSeconds.toFixed(2)}s<br>Total Keystrokes: ${totalKeystrokes}<br>Mistakes During Typing: ${realTimeMistakes}<br>Accuracy: ${(accuracy * 100).toFixed(1)}%<br><strong>Score: ${score}</strong>`;
 
-      supabase.from('leaderboard').insert([{ player_name: name, score: parseFloat(score) }])
-        .then(() => updateLeaderboard());
+      supabase.from('leaderboard').insert([{ player_name: name, score: parseFloat(score) }]).then(() => updateLeaderboard());
 
       hasStarted = false;
       startTime = null;
