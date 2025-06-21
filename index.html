@@ -3,71 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Typing Game</title>
+  <title>Typing Challenge</title>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     body {
-      font-family: sans-serif;
-      padding: 2rem;
-      background: #f9f9f9;
+      font-family: Arial, sans-serif;
       max-width: 800px;
       margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
     }
     h1 {
-      text-align: center;
       color: #333;
+      text-align: center;
     }
     .sentence {
-      background: #fff3cd;
-      border: 1px solid #ffeeba;
-      padding: 1.5rem;
-      border-radius: 8px;
-      margin-bottom: 1.5rem;
-      font-size: 1.1rem;
+      background-color: #fff8e1;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      font-size: 1.2em;
       line-height: 1.6;
     }
     input[type="text"] {
       width: 100%;
-      font-size: 1rem;
-      padding: 0.75rem;
-      margin-bottom: 1rem;
+      padding: 10px;
+      margin-bottom: 15px;
       border: 1px solid #ddd;
       border-radius: 4px;
-      box-sizing: border-box;
+      font-size: 1em;
     }
-    .typing-input {
-      height: 120px;
+    #inputField {
+      height: 100px;
       font-family: monospace;
-      font-size: 1.1rem;
     }
     .result {
-      margin-top: 1.5rem;
-      padding: 1rem;
-      background: #f8f9fa;
-      border-radius: 8px;
-      border-left: 4px solid #0d6efd;
+      background-color: #e8f5e9;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
     }
     .leaderboard {
-      margin-top: 2rem;
-      background: white;
-      padding: 1.5rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .leaderboard h3 {
-      margin-bottom: 1rem;
-      color: #333;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 0.5rem;
+      background-color: white;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 30px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     ol {
-      padding-left: 1.5rem;
+      padding-left: 20px;
     }
     li {
-      margin-bottom: 0.5rem;
-      padding: 0.5rem;
-      background: #f8f9fa;
-      border-radius: 4px;
+      margin-bottom: 8px;
+      padding: 5px;
     }
   </style>
 </head>
@@ -78,7 +66,7 @@
   </div>
 
   <input type="text" id="playerName" placeholder="Enter your name">
-  <input type="text" id="inputField" class="typing-input" placeholder="Type the damn sentence above and press Enter when done..." autocomplete="off">
+  <input type="text" id="inputField" placeholder="Type the sentence above and press Enter when done...">
   <div class="result" id="result"></div>
 
   <div class="leaderboard">
@@ -87,108 +75,96 @@
   </div>
 
   <script>
-    // Supabase configuration
-    const SUPABASE_URL = 'https://vcdrdwdhleiauccimdrm.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjZHJkd2RobGVpYXVjY2ltZHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0Njk0NzAsImV4cCI6MjA2NjA0NTQ3MH0.9bfXvPlXaPgCTYr7kPqwfqScsCNfkO2MtAgDbsw_GRY';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Initialize Supabase
+    const supabase = supabase.createClient(
+      'https://vcdrdwdhleiauccimdrm.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjZHJkd2RobGVpYXVjY2ltZHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0Njk0NzAsImV4cCI6MjA2NjA0NTQ3MH0.9bfXvPlXaPgCTYr7kPqwfqScsCNfkO2MtAgDbsw_GRY'
+    );
 
     // DOM elements
-    const targetSentence = document.getElementById('targetSentence').innerText;
+    const targetText = document.getElementById('targetSentence').innerText;
     const inputField = document.getElementById('inputField');
-    const result = document.getElementById('result');
+    const resultDiv = document.getElementById('result');
     const leaderboardList = document.getElementById('leaderboard');
     const playerNameInput = document.getElementById('playerName');
 
     // Game state
     let startTime = null;
-    let hasStarted = false;
-    let totalKeystrokes = 0;
-    let realTimeMistakes = 0;
+    let keystrokes = 0;
+    let mistakes = 0;
+    let gameActive = false;
 
     // Prevent cheating
+    inputField.addEventListener('paste', e => e.preventDefault());
     inputField.addEventListener('contextmenu', e => e.preventDefault());
-    inputField.addEventListener('paste', e => {
-      e.preventDefault();
-      alert("Pasting is disabled in this typing challenge!");
-    });
-    inputField.addEventListener('drop', e => e.preventDefault());
 
     // Typing tracking
-    inputField.addEventListener('input', () => {
-      if (!hasStarted && inputField.value.length > 0) {
-        hasStarted = true;
+    inputField.addEventListener('input', function() {
+      if (!gameActive && this.value.length > 0) {
+        gameActive = true;
         startTime = Date.now();
-        totalKeystrokes = 0;
-        realTimeMistakes = 0;
+        keystrokes = 0;
+        mistakes = 0;
       }
-
-      const currentInput = inputField.value;
-      const expectedChar = targetSentence[currentInput.length - 1];
-      const typedChar = currentInput[currentInput.length - 1];
-
-      if (expectedChar !== typedChar) {
-        realTimeMistakes++;
+      
+      const currentPos = this.value.length - 1;
+      if (currentPos >= 0 && this.value[currentPos] !== targetText[currentPos]) {
+        mistakes++;
       }
-
-      totalKeystrokes++;
+      keystrokes++;
     });
 
-    // Score submission on Enter key
-    inputField.addEventListener('keydown', async (e) => {
+    // Submit on Enter
+    inputField.addEventListener('keydown', async function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
         
-        const name = playerNameInput.value.trim();
-        const typed = inputField.value.trim();
+        const playerName = playerNameInput.value.trim();
+        const typedText = this.value.trim();
 
-        if (!name) {
-          alert("Please enter your name to submit your score.");
+        // Validate input
+        if (!playerName) {
+          alert("Please enter your name");
+          return;
+        }
+        if (!typedText) {
+          alert("Please type the sentence first");
+          return;
+        }
+        if (!gameActive) {
+          alert("Start typing to begin the challenge");
           return;
         }
 
-        if (!typed) {
-          alert("Please complete the typing challenge before submitting.");
-          return;
-        }
-
-        if (!hasStarted) {
-          alert("Please start typing first.");
-          return;
-        }
-
+        // Calculate results
         const endTime = Date.now();
-        const timeInSeconds = (endTime - startTime) / 1000;
-
-        // Calculate mistakes
-        let finalMistakes = 0;
-        const minLength = Math.min(typed.length, targetSentence.length);
-        for (let i = 0; i < minLength; i++) {
-          if (typed[i] !== targetSentence[i]) finalMistakes++;
+        const timeTaken = (endTime - startTime) / 1000;
+        
+        let totalMistakes = 0;
+        const compareLength = Math.min(typedText.length, targetText.length);
+        for (let i = 0; i < compareLength; i++) {
+          if (typedText[i] !== targetText[i]) totalMistakes++;
         }
-        finalMistakes += Math.abs(typed.length - targetSentence.length);
+        totalMistakes += Math.abs(typedText.length - targetText.length);
 
-        // Calculate score (lower is better)
-        const accuracy = totalKeystrokes > 0 ? Math.max(0, 1 - (realTimeMistakes / totalKeystrokes)) : 0;
-        const accuracyPenalty = (1 - accuracy) * 5;
-        const penalty = finalMistakes * 0.5 + accuracyPenalty;
-        const score = Math.max(0, (timeInSeconds - penalty)).toFixed(2);
+        const accuracy = keystrokes > 0 ? (1 - (mistakes / keystrokes)) * 100 : 0;
+        const score = (timeTaken + (totalMistakes * 0.5)).toFixed(2);
 
         // Display results
-        result.innerHTML = `
-          <h4>Your Results</h4>
-          <p>Time: <strong>${timeInSeconds.toFixed(2)}s</strong></p>
-          <p>Keystrokes: <strong>${totalKeystrokes}</strong></p>
-          <p>Mistakes: <strong>${realTimeMistakes}</strong></p>
-          <p>Accuracy: <strong>${(accuracy * 100).toFixed(1)}%</strong></p>
-          <p class="score">Final Score: <strong>${score}</strong> (lower is better)</p>
+        resultDiv.innerHTML = `
+          <h3>Your Results</h3>
+          <p>Time: ${timeTaken.toFixed(2)} seconds</p>
+          <p>Accuracy: ${accuracy.toFixed(1)}%</p>
+          <p>Mistakes: ${totalMistakes}</p>
+          <p><strong>Score: ${score}</strong> (lower is better)</p>
         `;
 
         // Save to Supabase
         try {
           const { error } = await supabase
             .from('leaderboard')
-            .insert([{ 
-              player_name: name, 
+            .insert([{
+              player_name: playerName,
               score: parseFloat(score),
               submitted_at: new Date().toISOString()
             }]);
@@ -197,16 +173,18 @@
           
           updateLeaderboard();
         } catch (error) {
-          console.error("Error saving score:", error);
-          result.innerHTML += `<p class="error">Error saving to leaderboard. Please try again.</p>`;
+          console.error("Supabase error:", error);
+          resultDiv.innerHTML += "<p>Error saving score (check console)</p>";
         }
 
-        // Reset game state
-        resetGame();
+        // Reset game
+        this.value = '';
+        gameActive = false;
+        playerNameInput.focus();
       }
     });
 
-    // Leaderboard management
+    // Update leaderboard
     async function updateLeaderboard() {
       try {
         const { data, error } = await supabase
@@ -218,40 +196,24 @@
         if (error) throw error;
 
         leaderboardList.innerHTML = '';
-        
         if (data && data.length > 0) {
           data.forEach((entry, index) => {
             const li = document.createElement('li');
-            li.innerHTML = `
-              <span class="rank">${index + 1}.</span>
-              <span class="name">${entry.player_name}</span>
-              <span class="score">${entry.score.toFixed(2)}s</span>
-            `;
+            li.textContent = `${index + 1}. ${entry.player_name}: ${entry.score.toFixed(2)}`;
             leaderboardList.appendChild(li);
           });
         } else {
-          leaderboardList.innerHTML = '<li>No scores yet. Be the first!</li>';
+          leaderboardList.innerHTML = '<li>No scores yet</li>';
         }
       } catch (error) {
-        console.error("Error loading leaderboard:", error);
+        console.error("Leaderboard error:", error);
         leaderboardList.innerHTML = '<li>Error loading leaderboard</li>';
       }
     }
 
-    function resetGame() {
-      hasStarted = false;
-      startTime = null;
-      inputField.value = '';
-      totalKeystrokes = 0;
-      realTimeMistakes = 0;
-      playerNameInput.focus();
-    }
-
     // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      updateLeaderboard();
-      inputField.focus();
-    });
+    updateLeaderboard();
+    inputField.focus();
   </script>
 </body>
 </html>
